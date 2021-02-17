@@ -1,0 +1,11 @@
+---
+- hosts: webservers
+  become: yes
+  tasks:
+  - name: update and upgrade apt packages
+    apt:
+      upgrade: yes
+      update_cache: yes
+      cache_valid_time: 86400 #One day
+  - name: "Install Tomcat"
+    apt: pkg=tomcat8 state=latest update_cache=yes cache_valid_time=86400
