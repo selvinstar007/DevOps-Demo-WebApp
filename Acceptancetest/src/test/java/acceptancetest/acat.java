@@ -37,6 +37,7 @@ public class acat {
 		driver.manage().timeouts().implicitlyWait(5, TimeUnit.SECONDS);
 	}
 
+	/*
 	@Test(priority = 1)
 	public void repairticket() throws Exception {
 		WebElement welcome = wait.until(ExpectedConditions
@@ -89,5 +90,6 @@ public class acat {
 		//driver.findElement(By.xpath("//h1[text()='JUPITER COMMUNICATION']")).isDisplayed();
 		driver.quit();
 	}
+	*/
 
 }
