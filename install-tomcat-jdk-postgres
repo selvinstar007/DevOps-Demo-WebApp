@@ -1,0 +1,151 @@
+---
+- name: Install Softwares on App Servers
+  hosts: appservers
+  become: yes
+  become_user: root
+  tasks:
+  - name: Install Postgres
+    block:
+      - name: copying file with playbook
+        become: true 
+        copy:
+          src: /var/lib/jenkins/Postgresql-Install-1.sh
+          dest: /root/Postgresql-Install-1.sh
+          owner: root
+          group: root        
+          mode: 0755
+    tags: ['always','copyfile']
+    #- name: Run a command that uses non-posix shell-isms (in this example /bin/sh doesn't handle redirection and wildcards together but bash does)
+    #become: true
+    #become_user: root
+    #command: /root/Postgresql-Install-1.sh >> install-postgres.log  
+  - name: Install Softwares
+    block:
+      - name: Update and upgrade apt packages
+        apt:
+          upgrade: yes
+          update_cache: yes
+          cache_valid_time: 86400 #One day
+      - name: "Install Java"
+        apt:
+          name: openjdk-8-jdk
+          state: present
+      - name: add tomcatuser
+        user: 
+          name: tomcat 
+          shell: /sbin/nologin 
+      - name: get_installer
+        get_url: 
+          url: https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.9/bin/apache-tomcat-8.5.9.tar.gz
+          dest: /tmp/
+        become: yes 
+        become_user: root 
+      - name: copy
+        command: cp -p /tmp/apache-tomcat-8.5.9.tar.gz /root/ 
+      - name: install
+        unarchive: 
+          src: /root/apache-tomcat-8.5.9.tar.gz 
+          dest: /root 
+          remote_src: yes
+        become: yes 
+        become_user: root 
+      - name: Change file ownership, group and permissions 
+        file: 
+          path: /root/apache-tomcat-8.5.9 
+          owner: root 
+          group: root 
+          recurse: yes 
+          state: directory
+      - name: make tomcat symbolic 
+        file: 
+          src: /root/apache-tomcat-8.5.9 
+          dest: /root/tomcat8 
+          owner: root 
+          group: root 
+          state: link 
+          force: yes 
+      - name: make tomcat-service 
+        file:
+          path: /etc/systemd/system/tomcat.service 
+          state: touch 
+      - name: edit tomcat-service
+        blockinfile: 
+          dest: /etc/systemd/system/tomcat.service 
+          insertafter: 
+          block: |
+            [Unit] 
+            Decription = Apache Tomcat 8
+            After = syslog.target network.target
+            [Service]
+            User = root
+            Group = root
+            Type = oneshot
+            PIDFile = /root/apache-tomcat-8.5.9/tomcat.pid
+            RemainAfterExit = yes
+            ExecStart = /root/apache-tomcat-8.5.9/bin/startup.sh
+            ExecStop = /root/apache-tomcat-8.5.9/bin/shutdown.sh
+            ExecReStart = /root/apache-tomcat-8.5.9/bin/shutdown.sh;/root/apache-tomcat-8.5.9/bin/startup.sh
+            [Install]
+            WantedBy = multi-user.target
+      - name: Change File Permission of Tomcat Service 
+        file: 
+          path: /etc/systemd/system/tomcat.service 
+          mode: 0755 
+      - name: edit tomcat-users.xml
+        blockinfile:
+          dest: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          insertafter: <tomcat-users>
+          block: |
+            <role rolename = "admin-gui" />
+            <role rolename = "manager-gui" />
+            <role rolename = "manager-script" />
+            <user username = "tomcat" password = "P@ssw0rd123" roles = "admin-gui,manager-gui,manager-script" />
+      - name: Make sure to open manager UI on any IP
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/webapps/manager/META-INF/context.xml
+          state: absent
+          regexp: '<Valve className="org.apache.catalina.valves.RemoteAddrValve"'
+      - name: Make sure to remove additional entry
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/webapps/manager/META-INF/context.xml
+          state: absent
+          regexp: 'allow="127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1" />'
+      - name: Remove additional lines from tomcat-users.xml
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          state: absent
+          regexp: '# BEGIN ANSIBLE MANAGED BLOCK'
+      - name: Remove additional lines from tomcat-users.xml
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          state: absent
+          regexp: '# END ANSIBLE MANAGED BLOCK'
+      - name: Remove tomcat-userts tag
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          state: absent
+          regexp: '</tomcat-users>'
+      - name: edit tomcat-users.xml
+        blockinfile:
+          dest: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          insertafter: This line is not present
+          block: |
+            </tomcat-users>
+      - name: Remove additional lines from tomcat-users.xml
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          state: absent
+          regexp: '# BEGIN ANSIBLE MANAGED BLOCK'
+      - name: Remove additional lines from tomcat-users.xml
+        ansible.builtin.lineinfile:
+          path: /root/apache-tomcat-8.5.9/conf/tomcat-users.xml
+          state: absent
+          regexp: '# END ANSIBLE MANAGED BLOCK'
+      - name: start tomcat
+        systemd: 
+          name: tomcat.service 
+          state: started 
+          daemon_reload: yes 
+          enabled: yes
+        become: yes
+    tags: ['always','installsoftware']
