@@ -56,6 +56,13 @@
 			<version>1.9.5</version>
 		</dependency>
 	</dependencies>
+	<distributionManagement>
+    <repository>
+        <id>central</id>
+        <name>a0ymsb6qgemw7-artifactory-primary-0-releases</name>
+        <url>https://mystdjfrog.jfrog.io/artifactory/newrepo1-libs-release-local</url>
+    </repository>
+</distributionManagement>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 					
